@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My 9 Albums</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="banner" id="banner" hidden>
+    <span>Viewing a shared collage. Changes here aren't saved.</span>
+    <button type="button" id="saveCopy">Save a copy</button>
+    <button type="button" id="backMine">Back to mine</button>
+  </div>
+  <header>
+    <h1><textarea class="edit" id="title" rows="1" maxlength="60" aria-label="Collage title" title="Click to edit" spellcheck="false"></textarea></h1>
+    <p><textarea class="edit" id="subtitle" rows="1" maxlength="100" aria-label="Collage subtitle" title="Click to edit" spellcheck="false"></textarea></p>
+  </header>
+
+  <main class="grid" id="grid"></main>
+
+  <footer>
+    <div class="seg" role="group" aria-label="Mode">
+      <button type="button" id="modeAlbums" aria-pressed="true">Albums</button>
+      <button type="button" id="modeSongs" aria-pressed="false">Songs</button>
+    </div>
+    <div class="tag" id="tag">#My9Albums</div>
+    <div class="actions">
+      <button class="btn" id="gen">Generate image</button>
+      <button class="btn secondary" id="share">Copy link</button>
+      <button class="btn secondary" id="theme">Theme</button>
+      <button class="btn secondary" id="clear">Clear all</button>
+    </div>
+    <div class="msg" id="msg" role="status"></div>
+  </footer>
+</div>
+
+<button class="help-btn" id="help" type="button" aria-label="How this works" title="How this works">?</button>
+
+<dialog id="helpDlg" aria-labelledby="helpTitle">
+  <div class="dlg">
+    <h2 class="help-title" id="helpTitle">How it works</h2>
+    <div class="help-body">
+      <dl>
+        <div><dt>Add <span class="anoun"></span></dt><dd>Click any empty + square, search for <span class="anoun"></span> or an artist, and pick one. The cover fills the square.</dd></div>
+        <div><dt>Listen</dt><dd>Click a cover to hear a 30-second preview of <span id="helpPlay"></span>. Click it again to stop.</dd></div>
+        <div><dt>Rearrange</dt><dd>Press and drag a cover onto another one to swap them, or onto an empty square to move it. It works with a finger too.</dd></div>
+        <div><dt>Change or remove</dt><dd>Hover over a cover. The ⇄ button picks a different <span class="noun"></span> for that spot, and the × clears it.</dd></div>
+        <div><dt>The description line</dt><dd>The line under each cover is for a short note of your own, like why it mattered to you. Whatever you write there shows up in your saved image.</dd></div>
+        <div><dt>Make it your own</dt><dd>Click the title or the line under it and type whatever you like. Each of Albums and Songs remembers its own wording. If you're not sure what to write, tap an idea to use it as your title:
+          <div class="chips" id="chips"></div></dd></div>
+        <div><dt>The buttons at the bottom</dt><dd>Albums / Songs switches between your two lists, and each keeps its own picks. Copy link makes a link to your collage you can send to someone. Theme changes the colors. Generate image saves your collage as a picture.</dd></div>
+      </dl>
+    </div>
+    <div class="help-foot"><button type="button" id="helpClose">Got it</button></div>
+  </div>
+</dialog>
+
+<dialog id="dlg">
+  <div class="dlg">
+    <div class="dlg-head">
+      <input id="q" type="search" placeholder="Search for an album or artist" autocomplete="off" aria-label="Search albums">
+      <button id="close" type="button">Close</button>
+    </div>
+    <div class="results" id="results"><div class="status">Type an album or artist name to search.</div></div>
+  </div>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>

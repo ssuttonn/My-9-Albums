@@ -1,0 +1,245 @@
+  :root {
+    --ink: #10261d; --cream: #fdf6e3; --ptext: #10261d; --sub: #4a6a58;
+    --card-label: #f6efdd; --ltext: #10261d; --lsub: #5b6f62; --line: #d4e3cf;
+    --bg-top: #d9ead6; --bg-bottom: #f7f3e6; --art-a: #1c3a2d; --art-b: #20432f;
+    --cap: #f6efdd; --accent: #10261d; --accent-text: #fdf6e3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    color: var(--accent);
+    transition: background .3s;
+    background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+    background-attachment: fixed;
+  }
+  .wrap { margin: 0 auto; padding: 14px 20px 12px; }
+  header {
+    width: min(420px, 100%); margin: 0 auto 14px; text-align: center;
+    background: var(--cream); color: var(--ptext); border: 1px solid var(--line); border-radius: 18px;
+    padding: 10px 20px 10px;
+  }
+  h1 { margin: 0; font-size: clamp(22px, 3.4vh, 32px); line-height: 1.1; }
+  header p { margin: 4px 0 0; font-size: 14px; font-weight: 700; color: var(--sub); }
+
+  .grid {
+    --w: clamp(80px, min((100vw - 64px) / 3, (100vh - 420px - var(--extra, 0px)) / 3), 360px);
+    display: grid; grid-template-columns: repeat(3, var(--w)); gap: 12px; justify-content: center;
+  }
+  .slot {
+    position: relative; padding: 0; border: 0; cursor: pointer; text-align: left;
+    background: var(--ink); border-radius: 14px; overflow: hidden;
+    box-shadow: 0 6px 16px rgba(16,38,29,.25);
+    display: flex; flex-direction: column; font: inherit; color: inherit;
+  }
+  .slot:focus-visible { outline: 4px solid #e0a526; outline-offset: 3px; }
+  .art { position: relative; aspect-ratio: 1; width: 100%; background: var(--art-a); }
+  .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .slot.empty .art {
+    display: grid; place-items: center;
+    background: repeating-linear-gradient(45deg, var(--art-a) 0 14px, var(--art-b) 14px 28px);
+  }
+  .plus {
+    width: 25%; aspect-ratio: 1; border-radius: 50%; background: var(--cream);
+    position: relative; transition: transform .15s;
+  }
+  .plus::before, .plus::after {
+    content: ""; position: absolute; background: var(--ptext); border-radius: 2px;
+    left: 50%; top: 50%; transform: translate(-50%, -50%);
+  }
+  .plus::before { width: 46%; height: 8%; }
+  .plus::after { width: 8%; height: 46%; }
+  .slot.empty:hover .plus { transform: scale(1.12); }
+  .label {
+    margin: 0 6px 6px; padding: 6px 8px; min-height: 40px;
+    background: var(--card-label); color: var(--ltext); border-radius: 6px;
+    font-size: 12px; font-weight: 700; line-height: 1.2;
+    display: flex; overflow: hidden; flex-direction: column; justify-content: center;
+  }
+  .label small { font-weight: 400; color: var(--lsub); margin-top: 1px; font-size: 11px; }
+  .label b { font-weight: 700; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  .slot.empty .label { color: var(--lsub); font-weight: 400; }
+  .cap {
+    display: block; width: calc(100% - 12px); margin: 0 6px 6px; padding: 4px 4px;
+    font: italic 12px "Trebuchet MS", "Segoe UI", system-ui, sans-serif; color: var(--cap);
+    background: transparent; border: 0; border-bottom: 1px dashed rgba(255,255,255,.3); border-radius: 0; outline: none;
+  }
+  .cap::placeholder { color: var(--cap); opacity: .5; }
+  .cap:focus { border-bottom: 1px solid var(--cap); }
+  .remove {
+    position: absolute; top: 8px; right: 8px; width: 32px; height: 32px;
+    border-radius: 50%; border: 0; cursor: pointer; font-size: 18px; line-height: 1;
+    background: rgba(253,246,227,.92); color: var(--ink); display: none;
+  }
+  .swap {
+    position: absolute; top: 8px; left: 8px; width: 32px; height: 32px;
+    border-radius: 50%; border: 0; cursor: pointer; font-size: 16px; line-height: 1;
+    background: rgba(253,246,227,.92); color: #10261d; display: none;
+  }
+  .slot.filled:hover .remove, .remove:focus-visible, .slot.filled:hover .swap, .swap:focus-visible { display: block; }
+  .play {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: calc(var(--w) * .22); height: calc(var(--w) * .22); min-width: 28px; min-height: 28px;
+    border-radius: 50%; background: rgba(0,0,0,.6); color: #fff; display: grid; place-items: center;
+    font-size: calc(var(--w) * .08); opacity: 0; transition: opacity .15s; pointer-events: none;
+  }
+  .slot.filled:hover .play, .slot.filled:focus-visible .play { opacity: 1; }
+  .np {
+    position: absolute; left: 6px; right: 6px; bottom: 6px; padding: 4px 9px; border-radius: 12px;
+    background: rgba(0,0,0,.7); color: #fff; font-size: 11px; font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+  }
+  .slot.playing { box-shadow: 0 0 0 3px #e0a526, 0 6px 16px rgba(16,38,29,.25); }
+
+  footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 14px; margin-top: 14px; }
+  body.shared { --extra: 52px; }
+  .slot { user-select: none; -webkit-user-select: none; }
+  .slot.filled { touch-action: none; }
+  .cap { user-select: text; -webkit-user-select: text; }
+  .slot.dragging { opacity: .35; }
+  .slot.dropover { outline: 3px dashed #e0a526; outline-offset: 2px; }
+  .ghost { position: fixed; z-index: 1000; pointer-events: none; border-radius: 10px; object-fit: cover; opacity: .92; box-shadow: 0 10px 24px rgba(0,0,0,.35); }
+  .banner {
+    display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; justify-content: center;
+    width: fit-content; max-width: 100%; margin: 0 auto 10px; padding: 6px 12px;
+    background: var(--cream); color: var(--ptext); border: 1px solid var(--line); border-radius: 12px; font-size: 13px; font-weight: 700;
+  }
+  .banner[hidden] { display: none; }
+  .banner button { font: inherit; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 8px; cursor: pointer; border: 2px solid var(--ptext); background: transparent; color: var(--ptext); }
+  .seg { display: inline-flex; border: 2px solid var(--accent); border-radius: 10px; overflow: hidden; }
+  .seg button { font: inherit; font-size: 14px; font-weight: 700; padding: 8px 16px; border: 0; cursor: pointer; background: transparent; color: var(--accent); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
+  .tag { background: var(--cream); color: var(--ptext); padding: 8px 28px; border-radius: 20px; font-weight: 700; font-size: 14px; }
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .btn {
+    font: inherit; font-weight: 700; padding: 8px 18px; border-radius: 10px; cursor: pointer; font-size: 14px;
+    border: 2px solid var(--accent); background: var(--accent); color: var(--accent-text);
+  }
+  .btn.secondary { background: transparent; color: var(--accent); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .msg { flex-basis: 100%; min-height: 18px; font-size: 13px; color: #8a2d2d; text-align: center; }
+
+  dialog {
+    width: min(620px, 94vw); max-height: 86vh; padding: 0; border: 0; border-radius: 20px;
+    background: var(--cream); color: var(--ptext); overflow: hidden;
+  }
+  dialog::backdrop { background: rgba(16,38,29,.55); }
+  .dlg { display: flex; flex-direction: column; max-height: 86vh; }
+  .dlg-head { padding: 18px 18px 12px; display: flex; gap: 10px; }
+  .dlg-head input {
+    flex: 1; font: inherit; padding: 12px 14px; border-radius: 12px;
+    border: 2px solid var(--ink); background: #fff; color: var(--ink);
+  }
+  .dlg-head button { font: inherit; font-weight: 700; padding: 0 16px; border-radius: 12px; border: 2px solid var(--ptext); background: transparent; cursor: pointer; color: var(--ptext); }
+  .results { overflow-y: auto; padding: 0 18px 18px; display: grid; gap: 8px; }
+  .res {
+    display: flex; gap: 12px; align-items: center; text-align: left; width: 100%;
+    font: inherit; color: #10261d; padding: 8px; border-radius: 12px; cursor: pointer;
+    border: 1px solid var(--line); background: #fff;
+  }
+  .res:hover, .res:focus-visible { border-color: var(--ink); outline: none; background: #f3f8ef; }
+  .res img { width: 56px; height: 56px; border-radius: 6px; object-fit: cover; flex: none; }
+  .res b { display: block; font-size: 15px; }
+  .res span { font-size: 13px; color: #5b6f62; }
+  .status { padding: 6px 4px; color: var(--sub); font-size: 14px; }
+
+  @media (max-width: 560px) {
+    .grid { gap: 8px; }
+    .label { font-size: 10px; margin: 0 4px 4px; padding: 4px 6px; min-height: 34px; }
+    .label small { font-size: 9px; }
+    .cap { font-size: 10px; margin: 0 4px 4px; }
+  }
+
+  /* ---------- UI ---------- */
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { background: none; border: 0; padding: 0; width: auto; margin: 4px auto 18px; color: var(--ptext); }
+  h1 { font-size: clamp(24px, 4vh, 36px); font-weight: 700; letter-spacing: -.02em; }
+  header p { margin-top: 4px; font-size: 14px; font-weight: 500; letter-spacing: .01em; }
+  .grid { --w: clamp(80px, min((100vw - 64px) / 3, (100vh - 400px - var(--extra, 0px) - var(--extra2, 0px)) / 3), 360px); gap: 14px 16px; }
+  .slot { background: none; box-shadow: none; overflow: visible; border-radius: 12px; }
+  .slot:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+  .art {
+    border-radius: 12px; overflow: hidden;
+    background: color-mix(in srgb, var(--ptext) 8%, transparent);
+    box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 8px 20px rgba(0,0,0,.14);
+  }
+  .slot.empty .art {
+    background: color-mix(in srgb, var(--ptext) 5%, transparent); box-shadow: none;
+    border: 1.5px dashed color-mix(in srgb, var(--ptext) 25%, transparent);
+    transition: background .15s, border-color .15s;
+  }
+  .slot.empty:hover .art { background: color-mix(in srgb, var(--ptext) 9%, transparent); border-color: color-mix(in srgb, var(--ptext) 45%, transparent); }
+  .plus { width: 20%; background: none; border-radius: 0; }
+  .plus::before, .plus::after { background: var(--sub); border-radius: 2px; }
+  .plus::before { width: 100%; height: 2px; }
+  .plus::after { width: 2px; height: 100%; }
+  .slot.empty:hover .plus { transform: none; }
+  .label { margin: 9px 2px 0; padding: 0; min-height: 0; background: none; border-radius: 0; color: var(--ptext); font-size: 13px; line-height: 1.25; }
+  .label b { font-weight: 600; }
+  .label small { font-size: 12px; color: var(--lsub); margin-top: 2px; }
+  .slot.empty .label { color: var(--lsub); font-weight: 500; text-align: center; }
+  .cap {
+    margin: 5px 2px 0; width: calc(100% - 4px); padding: 3px 0; font-size: 12px; font-style: italic;
+    color: var(--sub); border-bottom: 1px solid transparent;
+  }
+  .cap::placeholder { color: var(--sub); opacity: .45; }
+  .slot:hover .cap { border-bottom-color: color-mix(in srgb, var(--ptext) 18%, transparent); }
+  .cap:focus { border-bottom-color: var(--sub); }
+  .remove, .swap { width: 28px; height: 28px; font-size: 15px; background: rgba(255,255,255,.92); color: #222; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+  .slot.playing { box-shadow: none; }
+  .slot.playing .art { outline: 3px solid #e0a526; outline-offset: 2px; }
+  .slot.dropover { outline: none; }
+  .slot.dropover .art { outline: 3px dashed #e0a526; outline-offset: 2px; }
+  .tag { display: none; }
+  footer { gap: 10px 12px; margin-top: 18px; }
+  .btn { border-radius: 8px; border-width: 1.5px; padding: 8px 16px; font-weight: 600; font-size: 13px; transition: background .15s, opacity .15s; }
+  .btn:not(.secondary):hover { opacity: .88; }
+  .btn.secondary:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .seg { border-width: 1.5px; border-radius: 8px; }
+  .seg button { font-size: 13px; font-weight: 600; padding: 8px 14px; }
+  @media (max-width: 560px) {
+    .grid { gap: 10px 8px; }
+    .label { font-size: 11px; margin: 7px 1px 0; }
+    .label small { font-size: 10px; }
+    .cap { font-size: 10px; }
+  }
+  .play svg { width: 46%; height: 46%; display: block; fill: currentColor; }
+
+  /* ---------- Help button + dialog ---------- */
+  .help-btn {
+    position: fixed; top: 14px; right: 14px; z-index: 20; width: 34px; height: 34px; padding: 0;
+    display: grid; place-items: center; border-radius: 50%; cursor: pointer;
+    font: 700 16px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    border: 1.5px solid var(--accent); background: var(--cream); color: var(--ptext);
+    transition: background .15s, color .15s;
+  }
+  .help-btn:hover { background: var(--accent); color: var(--accent-text); }
+  .help-title { margin: 0; padding: 20px 20px 4px; font-size: 20px; }
+  .help-body { overflow-y: auto; padding: 8px 20px 12px; }
+  .help-body dl { margin: 0; display: grid; gap: 12px; }
+  .help-body dt { font-weight: 700; font-size: 14px; }
+  .help-body dd { margin: 2px 0 0; font-size: 14px; line-height: 1.45; color: var(--sub); }
+  .help-foot { padding: 6px 20px 18px; display: flex; justify-content: flex-end; }
+  .help-foot button { font: inherit; font-weight: 600; font-size: 13px; padding: 8px 18px; border-radius: 8px; cursor: pointer; border: 1.5px solid var(--accent); background: var(--accent); color: var(--accent-text); }
+
+  /* ---------- Editable title ---------- */
+  .edit {
+    display: block; width: min(560px, 100%); margin: 0 auto; padding: 0 4px; border: 0; border-radius: 0; outline: none;
+    background: none; color: inherit; font: inherit; letter-spacing: inherit; line-height: inherit; text-align: center;
+    border-bottom: 1.5px solid transparent; transition: border-color .15s;
+    resize: none; overflow: hidden; overflow-wrap: anywhere; white-space: pre-wrap;
+  }
+  .edit::placeholder { color: inherit; opacity: .5; }
+  .edit:hover { border-bottom-color: color-mix(in srgb, var(--ptext) 25%, transparent); }
+  .edit:focus { border-bottom-color: var(--sub); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip {
+    font: inherit; font-size: 12.5px; font-weight: 600; padding: 5px 11px; border-radius: 999px; cursor: pointer;
+    border: 1.5px solid color-mix(in srgb, var(--ptext) 25%, transparent); background: transparent; color: var(--ptext);
+  }
+  .chip:hover { background: color-mix(in srgb, var(--ptext) 10%, transparent); }
+
+  /* ---------- Fixed screen ---------- */
+  html, body { height: 100%; overflow: hidden; }
+  body { min-height: 0; }
+  .msg { height: 18px; min-height: 18px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
