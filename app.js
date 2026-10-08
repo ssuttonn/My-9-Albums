@@ -232,34 +232,47 @@ async function togglePreview(i) {
   }
 }
 
-// Apple request: try a normal fetch first (works on the hosted https site and lets us see rate-limit errors),
-// then fall back to the script-tag method (works from a double-clicked local file or where fetch is blocked).
+// Apple request. Tries, in order: (1) a normal fetch, (2) the script-tag method, then (3) two public relay
+// services that ask Apple on our behalf (for phones/networks that block Apple's domain or rate-limit them).
+// If everything fails, the error carries a short "detail" line saying what happened at each step.
 const apiCache = {};
+async function fetchJson(u, ms) {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms);
+  try {
+    const res = await fetch(u, { signal: ctl.signal });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return await res.json();
+  } finally { clearTimeout(t); }
+}
 async function itunes(url) {
   if (apiCache[url]) return apiCache[url];
-  let data;
-  try {
-    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 8000);
-    const res = await fetch(url, { signal: ctl.signal });
-    clearTimeout(t);
-    if (res.status === 403 || res.status === 429) { const e = new Error("rate limited"); e.rate = true; throw e; }
-    if (!res.ok) throw new Error("http " + res.status);
-    data = await res.json();
-  } catch (e) {
-    if (e.rate) throw e;
-    data = await jsonp(url);
+  const why = [];
+  const attempts = [
+    ["direct", () => fetchJson(url, 6000)],
+    ["script", () => jsonp(url, 7000)],
+    ["relay 1", () => fetchJson("https://api.allorigins.win/raw?url=" + encodeURIComponent(url), 8000)],
+    ["relay 2", () => fetchJson("https://corsproxy.io/?" + encodeURIComponent(url), 8000)]
+  ];
+  for (const [name, run] of attempts) {
+    try {
+      const d = await run();
+      if (d && Array.isArray(d.results)) { apiCache[url] = d; return d; }
+      why.push(name + ": unexpected reply");
+    } catch (e) { why.push(name + ": " + ((e && e.message) || "failed")); }
   }
-  apiCache[url] = data;
-  return data;
+  const err = new Error("all attempts failed");
+  err.detail = why.join(" | ");
+  err.rate = why.some(w => /HTTP (403|429)/.test(w));
+  throw err;
 }
 
 // Script-tag (JSONP) request: works from a double-clicked local file, where fetch() is blocked by CORS.
-function jsonp(url) {
+function jsonp(url, ms = 10000) {
   return new Promise((resolve, reject) => {
     const cb = "itunesCb" + Date.now() + Math.floor(Math.random() * 1000);
     const s = document.createElement("script");
     const done = () => { delete window[cb]; s.remove(); clearTimeout(t); };
-    const t = setTimeout(() => { done(); reject(new Error("timeout")); }, 10000);
+    const t = setTimeout(() => { done(); reject(new Error("timeout")); }, ms);
     window[cb] = data => { done(); resolve(data); };
     s.onerror = () => { done(); reject(new Error("network")); };
     s.src = url + "&callback=" + cb;
@@ -292,9 +305,12 @@ async function search() {
       results.appendChild(btn);
     });
   } catch (e) {
-    if (id === reqId) results.innerHTML = e && e.rate
-      ? '<div class="status">Apple\'s search is busy right now (too many requests). Wait about a minute and try again.</div>'
-      : '<div class="status">Couldn\'t reach Apple\'s music search. Check your connection. If you\'re on a phone, try Wi-Fi, and turn off any content blocker or private browsing for this site.</div>';
+    if (id === reqId) {
+      const detail = e && e.detail ? `<br><small>Details: ${esc(e.detail)}</small>` : "";
+      results.innerHTML = e && e.rate
+        ? `<div class="status">Apple's search is busy right now (too many requests). Wait about a minute and try again.${detail}</div>`
+        : `<div class="status">Couldn't reach Apple's music search. Check your connection. If you're on a phone, try Wi-Fi, and turn off any content blocker or private browsing for this site.${detail}</div>`;
+    }
   }
 }
 
