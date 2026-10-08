@@ -1,4 +1,5 @@
 const SIZE = 9;
+const touchMq = window.matchMedia("(hover: none) and (pointer: coarse)");   // phones and tablets
 const KEY = "albums-that-shaped-me";
 const MODES = {
   albums: { title: "My 9 Albums", sub: "The 9 albums that shaped who I am", tag: "#My9Albums", noun: "album", add: "Add an album",
@@ -70,6 +71,9 @@ function fitHeader() {
 function fitGrid() {
   const slots = grid.children;
   if (!slots.length) return;
+  // On touch screens, don't resize the grid while the on-screen keyboard is up.
+  const ae = document.activeElement;
+  if (touchMq.matches && ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return;
   const wrap = document.querySelector(".wrap"), footer = document.querySelector("footer");
   const gs = getComputedStyle(grid), ws = getComputedStyle(wrap);
   let textH = 0;
@@ -137,6 +141,7 @@ function render() {
       if (suppressClick || e.target.closest(".cap")) return;
       if (e.target.closest(".remove")) { if (playing && playing.i === i) stopAudio(); albums[i] = null; save(); render(); return; }
       if (e.target.closest(".swap") || !albums[i]) { openSearch(i); return; }
+      if (touchMq.matches) { openCard(i); return; }   // touch screens: open the options sheet
       togglePreview(i);
     });
     b.addEventListener("keydown", e => { if (e.target.closest(".cap")) return; if (e.key === "Enter" || e.key === " ") { e.preventDefault(); b.click(); } });
@@ -157,25 +162,40 @@ $("close").onclick = () => dlg.close();
 dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
 
 let timer, reqId = 0;
-q.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(search, 350); });
+q.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(search, 500); });
+q.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); clearTimeout(timer); search(); } });
 
 // ---------- Track previews (30-second clips from the iTunes API) ----------
 const audio = new Audio();
 let playing = null;            // { i: slot index, title: track name }
 const trackCache = {}, lastTrack = {};
-audio.addEventListener("ended", () => { playing = null; render(); });
+const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+audio.addEventListener("ended", () => {
+  if (audio.src.indexOf("data:audio/wav") === 0) return;   // the silent unlock clip, not a real preview
+  playing = null; render(); if (cardDlg.open) syncCardPlay();
+});
 function stopAudio() { audio.pause(); playing = null; }
+
+// iPhones only allow audio that starts from a tap. Our previews start after a network lookup, so on the
+// first tap we "unlock" the audio element with a silent clip; after that it can play previews normally.
+let audioUnlocked = false;
+function unlockAudio() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  try { audio.src = SILENT; const p = audio.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+}
+["click", "touchend"].forEach(ev => document.addEventListener(ev, unlockAudio, { capture: true, passive: true }));
 
 async function getTracks(a) {
   const key = a.id || (a.name + "|" + a.artist);
   if (trackCache[key]) return trackCache[key];
   let list = [];
   if (a.id) {
-    const d = await jsonp(`https://itunes.apple.com/lookup?id=${a.id}&entity=song`);
+    const d = await itunes(`https://itunes.apple.com/lookup?id=${a.id}&entity=song`);
     list = d.results.filter(r => r.wrapperType === "track" && r.previewUrl);
   }
   if (!list.length) { // fallback for albums saved before ids were stored
-    const d = await jsonp(`https://itunes.apple.com/search?media=music&entity=song&limit=50&term=${encodeURIComponent(a.name + " " + a.artist)}`);
+    const d = await itunes(`https://itunes.apple.com/search?media=music&entity=song&limit=50&term=${encodeURIComponent(a.name + " " + a.artist)}`);
     const nm = a.name.toLowerCase();
     list = d.results.filter(r => r.previewUrl && (r.collectionName || "").toLowerCase() === nm);
   }
@@ -191,7 +211,7 @@ async function togglePreview(i) {
     let list;
     if (a.kind === "song") {
       if (!a.preview && a.id) {   // shared links don't carry the preview URL, so look it up
-        const d = await jsonp(`https://itunes.apple.com/lookup?id=${a.id}`);
+        const d = await itunes(`https://itunes.apple.com/lookup?id=${a.id}`);
         const r = d.results && d.results[0];
         if (r && r.previewUrl) a.preview = r.previewUrl;
       }
@@ -212,6 +232,27 @@ async function togglePreview(i) {
   }
 }
 
+// Apple request: try a normal fetch first (works on the hosted https site and lets us see rate-limit errors),
+// then fall back to the script-tag method (works from a double-clicked local file or where fetch is blocked).
+const apiCache = {};
+async function itunes(url) {
+  if (apiCache[url]) return apiCache[url];
+  let data;
+  try {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 8000);
+    const res = await fetch(url, { signal: ctl.signal });
+    clearTimeout(t);
+    if (res.status === 403 || res.status === 429) { const e = new Error("rate limited"); e.rate = true; throw e; }
+    if (!res.ok) throw new Error("http " + res.status);
+    data = await res.json();
+  } catch (e) {
+    if (e.rate) throw e;
+    data = await jsonp(url);
+  }
+  apiCache[url] = data;
+  return data;
+}
+
 // Script-tag (JSONP) request: works from a double-clicked local file, where fetch() is blocked by CORS.
 function jsonp(url) {
   return new Promise((resolve, reject) => {
@@ -228,12 +269,12 @@ function jsonp(url) {
 
 async function search() {
   const term = q.value.trim();
-  if (!term) { results.innerHTML = `<div class="status">${MODES[mode].hint}</div>`; return; }
+  if (term.length < 2) { results.innerHTML = `<div class="status">${MODES[mode].hint}</div>`; return; }
   const id = ++reqId;
   results.innerHTML = '<div class="status">Searching…</div>';
   try {
     const url = `https://itunes.apple.com/search?media=music&entity=${mode === "songs" ? "song" : "album"}&limit=25&term=${encodeURIComponent(term)}`;
-    const data = await jsonp(url);
+    const data = await itunes(url);
     if (id !== reqId) return;
     if (!data.results.length) { results.innerHTML = `<div class="status">No ${MODES[mode].noun}s found. Try a different spelling.</div>`; return; }
     results.innerHTML = "";
@@ -251,7 +292,9 @@ async function search() {
       results.appendChild(btn);
     });
   } catch (e) {
-    if (id === reqId) results.innerHTML = '<div class="status">Search failed. Check your internet connection and try again.</div>';
+    if (id === reqId) results.innerHTML = e && e.rate
+      ? '<div class="status">Apple\'s search is busy right now (too many requests). Wait about a minute and try again.</div>'
+      : '<div class="status">Couldn\'t reach Apple\'s music search. Check your connection. If you\'re on a phone, try Wi-Fi, and turn off any content blocker or private browsing for this site.</div>';
   }
 }
 
@@ -350,9 +393,14 @@ async function generate() {
     c.fillText(MODES[mode].tag, W / 2, gy + ch * 3 + gap * 2 + 48);
 
     const blob = await new Promise((res, rej) => cv.toBlob(b => b ? res(b) : rej(new Error("toBlob failed")), "image/png"));
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = MODES[mode].file;
-    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    msg.style.color = "#2d6a45"; msg.textContent = `Saved ${MODES[mode].file} to your downloads.`;
+    if (touchMq.matches) {   // phones: show the image so it can be shared or saved to Photos
+      showImage(blob);
+      msg.style.color = "#2d6a45"; msg.textContent = "Your image is ready.";
+    } else {
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = MODES[mode].file;
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      msg.style.color = "#2d6a45"; msg.textContent = `Saved ${MODES[mode].file} to your downloads.`;
+    }
   } catch (e) {
     msg.style.color = "#8a2d2d";
     msg.textContent = "Couldn't build the image. Check your internet connection and try again.";
@@ -485,6 +533,64 @@ $("chips").addEventListener("click", e => {
 $("help").onclick = () => $("helpDlg").showModal();
 $("helpClose").onclick = () => $("helpDlg").close();
 $("helpDlg").addEventListener("click", e => { if (e.target === $("helpDlg")) $("helpDlg").close(); });
+
+/* ---------- Touch screens: options sheet for a tapped cover ---------- */
+const cardDlg = $("cardDlg"), imgDlg = $("imgDlg");
+let cardSlot = null;
+function syncCardPlay() { $("cardPlay").textContent = (playing && playing.i === cardSlot) ? "Stop preview" : "Play preview"; }
+function openCard(i) {
+  const a = albums[i]; if (!a) return;
+  cardSlot = i;
+  $("cardImg").src = a.art; $("cardName").textContent = a.name; $("cardArtist").textContent = a.artist;
+  $("cardCap").value = a.caption || ""; $("cardMsg").textContent = ""; syncCardPlay();
+  cardDlg.showModal();
+}
+$("cardCap").addEventListener("input", () => { if (albums[cardSlot]) { albums[cardSlot].caption = $("cardCap").value; save(); } });
+$("cardCap").addEventListener("keydown", e => { if (e.key === "Enter") e.target.blur(); });
+$("cardPlay").onclick = async () => {
+  $("cardPlay").textContent = "Loading…"; $("cardMsg").textContent = "";
+  await togglePreview(cardSlot);
+  syncCardPlay();
+  $("cardMsg").textContent = /^Loading/.test(msg.textContent) ? "" : msg.textContent;
+};
+$("cardChange").onclick = () => { cardDlg.close(); openSearch(cardSlot); };
+$("cardRemove").onclick = () => {
+  if (playing && playing.i === cardSlot) stopAudio();
+  albums[cardSlot] = null; save(); render(); cardDlg.close();
+};
+$("cardClose").onclick = () => cardDlg.close();
+cardDlg.addEventListener("click", e => { if (e.target === cardDlg) cardDlg.close(); });
+
+/* ---------- Touch screens: show the finished image so it can be shared or saved ---------- */
+let outUrl = null, outFile = null;
+function showImage(blob) {
+  if (outUrl) URL.revokeObjectURL(outUrl);
+  outUrl = URL.createObjectURL(blob);
+  try { outFile = new File([blob], MODES[mode].file, { type: "image/png" }); } catch (e) { outFile = null; }
+  $("outImg").src = outUrl;
+  const canShare = !!(navigator.canShare && outFile && navigator.canShare({ files: [outFile] }));
+  $("imgShare").textContent = canShare ? "Share / Save" : "Download";
+  imgDlg.showModal();
+}
+$("imgShare").onclick = async () => {
+  if (navigator.canShare && outFile && navigator.canShare({ files: [outFile] })) {
+    try { await navigator.share({ files: [outFile], title: getTitle() }); } catch (e) {}
+    return;
+  }
+  const a = document.createElement("a"); a.href = outUrl; a.download = MODES[mode].file;
+  document.body.appendChild(a); a.click(); a.remove();
+};
+$("imgClose").onclick = () => imgDlg.close();
+imgDlg.addEventListener("click", e => { if (e.target === imgDlg) imgDlg.close(); });
+
+/* ---------- Touch layout + keep dialogs above the on-screen keyboard ---------- */
+function applyTouch() { document.documentElement.classList.toggle("touch", touchMq.matches); fitGrid(); }
+if (touchMq.addEventListener) touchMq.addEventListener("change", applyTouch); else if (touchMq.addListener) touchMq.addListener(applyTouch);
+if (window.visualViewport) {
+  const setVV = () => document.documentElement.style.setProperty("--vvh", window.visualViewport.height + "px");
+  window.visualViewport.addEventListener("resize", setVV); setVV();
+}
+document.documentElement.classList.toggle("touch", touchMq.matches);
 
 applyShared();
 applyTheme();

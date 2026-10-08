@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="icons/site.webmanifest">
 
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <div class="wrap">
@@ -52,10 +52,10 @@
     <div class="help-body">
       <dl>
         <div><dt>Add <span class="anoun"></span></dt><dd>Click any empty + square, search for <span class="anoun"></span> or an artist, and pick one. The cover fills the square.</dd></div>
-        <div><dt>Listen</dt><dd>Click a cover to hear a 30-second preview of <span id="helpPlay"></span>. Click it again to stop.</dd></div>
+        <div><dt>Listen</dt><dd>Click a cover to hear a 30-second preview of <span id="helpPlay"></span>. Click it again to stop. On a phone, tap a cover and choose Play preview.</dd></div>
         <div><dt>Rearrange</dt><dd>Press and drag a cover onto another one to swap them, or onto an empty square to move it. It works with a finger too.</dd></div>
-        <div><dt>Change or remove</dt><dd>Hover over a cover. The ⇄ button picks a different <span class="noun"></span> for that spot, and the × clears it.</dd></div>
-        <div><dt>The description line</dt><dd>The line under each cover is for a short note of your own, like why it mattered to you. Whatever you write there shows up in your saved image.</dd></div>
+        <div><dt>Change or remove</dt><dd>On a computer, hover over a cover: the ⇄ button picks a different <span class="noun"></span> for that spot, and the × clears it. On a phone, tap a cover to open its options.</dd></div>
+        <div><dt>The description line</dt><dd>The line under each cover (on a phone, tap the cover to edit it) is for a short note of your own, like why it mattered to you. Whatever you write there shows up in your saved image.</dd></div>
         <div><dt>Make it your own</dt><dd>Click the title or the line under it and type whatever you like. Each of Albums and Songs remembers its own wording. If you're not sure what to write, tap an idea to use it as your title:
           <div class="chips" id="chips"></div></dd></div>
         <div><dt>The buttons at the bottom</dt><dd>Albums / Songs switches between your two lists, and each keeps its own picks. Copy link makes a link to your collage you can send to someone. Theme changes the colors. Generate image saves your collage as a picture.</dd></div>
@@ -68,13 +68,47 @@
 <dialog id="dlg">
   <div class="dlg">
     <div class="dlg-head">
-      <input id="q" type="search" placeholder="Search for an album or artist" autocomplete="off" aria-label="Search albums">
+      <input id="q" type="search" enterkeyhint="search" placeholder="Search for an album or artist" autocomplete="off" aria-label="Search albums">
       <button id="close" type="button">Close</button>
     </div>
     <div class="results" id="results"><div class="status">Type an album or artist name to search.</div></div>
   </div>
 </dialog>
 
-<script src="app.js"></script>
+<dialog id="cardDlg" aria-labelledby="cardName">
+  <div class="dlg">
+    <div class="card-head">
+      <img id="cardImg" alt="">
+      <div><b id="cardName"></b><span id="cardArtist"></span></div>
+    </div>
+    <div class="card-body">
+      <label for="cardCap">Caption</label>
+      <input id="cardCap" type="text" maxlength="60" placeholder="Add a caption" autocomplete="off">
+      <div class="card-actions">
+        <button type="button" class="btn" id="cardPlay">Play preview</button>
+        <button type="button" class="btn secondary" id="cardChange">Change</button>
+        <button type="button" class="btn secondary" id="cardRemove">Remove</button>
+      </div>
+      <div class="card-msg" id="cardMsg" role="status"></div>
+    </div>
+    <div class="help-foot"><button type="button" id="cardClose">Done</button></div>
+  </div>
+</dialog>
+
+<dialog id="imgDlg" aria-labelledby="imgTitle">
+  <div class="dlg">
+    <h2 class="help-title" id="imgTitle">Your collage</h2>
+    <div class="help-body">
+      <img id="outImg" alt="Your finished collage">
+      <p class="hint">Tap Share / Save to send it or save it to Photos. You can also press and hold the image.</p>
+    </div>
+    <div class="help-foot">
+      <button type="button" class="secondary" id="imgClose">Close</button>
+      <button type="button" id="imgShare">Share / Save</button>
+    </div>
+  </div>
+</dialog>
+
+<script src="app.js?v=4"></script>
 </body>
 </html>
