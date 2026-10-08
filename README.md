@@ -8,7 +8,7 @@ Search for music, build your 9 picks, rearrange them, add your own captions, lis
 
 You can try **My 9 Albums** here:
 
-[**My 9 Albums — Live Demo**](https://ssuttonn.github.io/My-9-Albums/)
+[**My 9 Albums**](https://ssuttonn.github.io/My-9-Albums/)
 
 ## Features
 
