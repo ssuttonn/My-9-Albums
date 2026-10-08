@@ -4,6 +4,12 @@
 
 Search for music, build your 9 picks, rearrange them, add your own captions, listen to 30-second previews, customize the theme, and share your finished collage with a link.
 
+## Try It Out
+
+You can try **My 9 Albums** here:
+
+[**My 9 Albums — Live Demo**](https://ssuttonn.github.io/My-9-Albums/)
+
 ## Features
 
 - **Albums & Songs modes** — Create a list of your 9 favorite albums or songs.
