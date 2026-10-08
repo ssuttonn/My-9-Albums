@@ -8,19 +8,19 @@ const MODES = {
 };
 let sharedView = false;
 let mode = "albums";
-try { const m = localStorage.getItem(KEY + "-mode"); if (MODES[m]) mode = m; } catch (e) {}
+try { const m = sessionStorage.getItem(KEY + "-mode"); if (MODES[m]) mode = m; } catch (e) {}
 const storeKey = () => mode === "songs" ? KEY + "-songs" : KEY;
 function loadItems() {
   let items = Array(SIZE).fill(null);
-  try { const s = JSON.parse(localStorage.getItem(storeKey())); if (Array.isArray(s) && s.length === SIZE) items = s; } catch (e) {}
+  try { const s = JSON.parse(sessionStorage.getItem(storeKey())); if (Array.isArray(s) && s.length === SIZE) items = s; } catch (e) {}
   return items;
 }
 let titles = { t: "", s: "" };   // custom title/subtitle for the current mode ("" = use default)
 function loadTexts() {
-  try { const o = JSON.parse(localStorage.getItem(storeKey() + "-text")) || {}; titles = { t: String(o.t || "").slice(0, 60), s: String(o.s || "").slice(0, 100) }; }
+  try { const o = JSON.parse(sessionStorage.getItem(storeKey() + "-text")) || {}; titles = { t: String(o.t || "").slice(0, 60), s: String(o.s || "").slice(0, 100) }; }
   catch (e) { titles = { t: "", s: "" }; }
 }
-function saveTexts() { if (sharedView) return; try { localStorage.setItem(storeKey() + "-text", JSON.stringify(titles)); } catch (e) {} }
+function saveTexts() { if (sharedView) return; try { sessionStorage.setItem(storeKey() + "-text", JSON.stringify(titles)); } catch (e) {} }
 const getTitle = () => titles.t.trim() || MODES[mode].title;
 const getSub = () => titles.s.trim() || MODES[mode].sub;
 let albums = loadItems();   // holds albums or songs, depending on mode
@@ -40,7 +40,7 @@ const THEMES = {
   midnight: T("Midnight", ["#12121c","#1f1b2e","#0a0a12","#26223a","#f1ecff","#b8a9e8","#2d2946","#f1ecff","#b3a9d6","#3a3556","#1a1830","#201d3a","#d9d2f5","#f1ecff","#12121c"])
 };
 let theme = "forest";
-try { const t = localStorage.getItem(KEY + "-theme"); if (THEMES[t]) theme = t; } catch (e) {}
+try { const t = sessionStorage.getItem(KEY + "-theme"); if (THEMES[t]) theme = t; } catch (e) {}
 function applyTheme() {
   const t = THEMES[theme], r = document.documentElement.style;
   const map = { "--bg-top": "bgTop", "--bg-bottom": "bgBottom", "--ink": "card", "--cream": "panel", "--ptext": "ptext", "--sub": "sub",
@@ -53,7 +53,7 @@ function applyTheme() {
 const $ = id => document.getElementById(id);
 const grid = $("grid"), dlg = $("dlg"), q = $("q"), results = $("results"), msg = $("msg");
 
-function save() { if (sharedView) return; try { localStorage.setItem(storeKey(), JSON.stringify(albums)); } catch (e) {} }
+function save() { if (sharedView) return; try { sessionStorage.setItem(storeKey(), JSON.stringify(albums)); } catch (e) {} }
 
 function fitHeader() {
   let extra = 0;
@@ -66,7 +66,7 @@ function fitHeader() {
   fitGrid();
 }
 
-// Size the covers so the whole page fits the window exactly
+// Size the covers so the whole page (title, 3x3 grid, buttons) fits the window exactly, with no scrolling.
 function fitGrid() {
   const slots = grid.children;
   if (!slots.length) return;
@@ -107,7 +107,7 @@ function setMode(next) {
   if (sharedView) leaveShared();
   if (next === mode) return;
   stopAudio(); mode = next; msg.textContent = "";
-  try { localStorage.setItem(KEY + "-mode", mode); } catch (e) {}
+  try { sessionStorage.setItem(KEY + "-mode", mode); } catch (e) {}
   albums = loadItems(); loadTexts(); applyMode(); render();
 }
 $("modeAlbums").onclick = () => setMode("albums");
@@ -257,7 +257,7 @@ async function search() {
 
 $("clear").onclick = () => { if (confirm(`Remove all ${MODES[mode].noun}s?`)) { stopAudio(); albums = Array(SIZE).fill(null); save(); render(); } };
 
-/* ---------- Image export---------- */
+/* ---------- Image export (drawn on a canvas so it matches the page) ---------- */
 function loadImg(src) {
   return new Promise((res, rej) => {
     const im = new Image(); im.crossOrigin = "anonymous";
@@ -363,11 +363,11 @@ $("gen").onclick = generate;
 $("theme").onclick = () => {
   const keys = Object.keys(THEMES);
   theme = keys[(keys.indexOf(theme) + 1) % keys.length];
-  if (!sharedView) { try { localStorage.setItem(KEY + "-theme", theme); } catch (e) {} }
+  if (!sharedView) { try { sessionStorage.setItem(KEY + "-theme", theme); } catch (e) {} }
   applyTheme();
 };
 
-/* ---------- Drag to reorder---------- */
+/* ---------- Drag to reorder (mouse and touch) ---------- */
 let suppressClick = false;
 function attachDrag(b, i) {
   b.addEventListener("pointerdown", e => {
@@ -410,7 +410,7 @@ function attachDrag(b, i) {
   });
 }
 
-/* ---------- Shareable link---------- */
+/* ---------- Shareable link (the collage is stored in the URL after the #) ---------- */
 function encodeShare() {
   const o = { m: mode, t: theme, l: albums.map(a => a ? { n: a.name, a: a.artist, i: a.id, r: a.art, c: a.caption || undefined } : null), tt: titles.t || undefined, ss: titles.s || undefined };
   return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -440,7 +440,7 @@ function leaveShared() {
   sharedView = false; document.body.classList.remove("shared"); $("banner").hidden = true;
   history.replaceState(null, "", location.pathname + location.search);
   try {
-    const m = localStorage.getItem(KEY + "-mode"), t = localStorage.getItem(KEY + "-theme");
+    const m = sessionStorage.getItem(KEY + "-mode"), t = sessionStorage.getItem(KEY + "-theme");
     mode = MODES[m] ? m : "albums"; theme = THEMES[t] ? t : "forest";
   } catch (e) { mode = "albums"; theme = "forest"; }
   stopAudio(); albums = loadItems(); loadTexts(); applyTheme(); applyMode(); render();
@@ -448,12 +448,12 @@ function leaveShared() {
 $("backMine").onclick = leaveShared;
 $("saveCopy").onclick = () => {
   let has = false;
-  try { const own = JSON.parse(localStorage.getItem(storeKey())); has = Array.isArray(own) && own.some(Boolean); } catch (e) {}
+  try { const own = JSON.parse(sessionStorage.getItem(storeKey())); has = Array.isArray(own) && own.some(Boolean); } catch (e) {}
   if (has && !confirm(`This will replace your current ${MODES[mode].noun} list. Continue?`)) return;
   const keep = albums;
   sharedView = false; document.body.classList.remove("shared"); $("banner").hidden = true;
   history.replaceState(null, "", location.pathname + location.search);
-  try { localStorage.setItem(KEY + "-mode", mode); localStorage.setItem(KEY + "-theme", theme); } catch (e) {}
+  try { sessionStorage.setItem(KEY + "-mode", mode); sessionStorage.setItem(KEY + "-theme", theme); } catch (e) {}
   albums = keep; save(); saveTexts(); applyMode(); render();
 };
 $("share").onclick = async () => {
