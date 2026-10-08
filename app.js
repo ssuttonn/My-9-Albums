@@ -171,11 +171,11 @@ async function getTracks(a) {
   if (trackCache[key]) return trackCache[key];
   let list = [];
   if (a.id) {
-    const d = await itunes(`https://itunes.apple.com/lookup?id=${a.id}&entity=song`);
+    const d = await jsonp(`https://itunes.apple.com/lookup?id=${a.id}&entity=song`);
     list = d.results.filter(r => r.wrapperType === "track" && r.previewUrl);
   }
   if (!list.length) { // fallback for albums saved before ids were stored
-    const d = await itunes(`https://itunes.apple.com/search?media=music&entity=song&limit=50&term=${encodeURIComponent(a.name + " " + a.artist)}`);
+    const d = await jsonp(`https://itunes.apple.com/search?media=music&entity=song&limit=50&term=${encodeURIComponent(a.name + " " + a.artist)}`);
     const nm = a.name.toLowerCase();
     list = d.results.filter(r => r.previewUrl && (r.collectionName || "").toLowerCase() === nm);
   }
@@ -191,7 +191,7 @@ async function togglePreview(i) {
     let list;
     if (a.kind === "song") {
       if (!a.preview && a.id) {   // shared links don't carry the preview URL, so look it up
-        const d = await itunes(`https://itunes.apple.com/lookup?id=${a.id}`);
+        const d = await jsonp(`https://itunes.apple.com/lookup?id=${a.id}`);
         const r = d.results && d.results[0];
         if (r && r.previewUrl) a.preview = r.previewUrl;
       }
@@ -212,100 +212,46 @@ async function togglePreview(i) {
   }
 }
 
-// Standard fetch request to the iTunes Search API
-// Script-tag request to the iTunes API.
-// This avoids browser CORS restrictions.
-function itunes(url) {
+// Script-tag (JSONP) request: works from a double-clicked local file, where fetch() is blocked by CORS.
+function jsonp(url) {
   return new Promise((resolve, reject) => {
     const cb = "itunesCb" + Date.now() + Math.floor(Math.random() * 1000);
     const s = document.createElement("script");
-
-    const done = () => {
-      delete window[cb];
-      s.remove();
-      clearTimeout(t);
-    };
-
-    const t = setTimeout(() => {
-      done();
-      reject(new Error("iTunes API timeout"));
-    }, 10000);
-
-    window[cb] = data => {
-      done();
-      resolve(data);
-    };
-
-    s.onerror = () => {
-      done();
-      reject(new Error("iTunes API network error"));
-    };
-
-    s.src = url + (url.includes("?") ? "&" : "?") + "callback=" + cb;
+    const done = () => { delete window[cb]; s.remove(); clearTimeout(t); };
+    const t = setTimeout(() => { done(); reject(new Error("timeout")); }, 10000);
+    window[cb] = data => { done(); resolve(data); };
+    s.onerror = () => { done(); reject(new Error("network")); };
+    s.src = url + "&callback=" + cb;
     document.head.appendChild(s);
   });
 }
 
 async function search() {
   const term = q.value.trim();
-  if (!term) {
-    results.innerHTML = `<div class="status">${MODES[mode].hint}</div>`;
-    return;
-  }
-
+  if (!term) { results.innerHTML = `<div class="status">${MODES[mode].hint}</div>`; return; }
   const id = ++reqId;
   results.innerHTML = '<div class="status">Searching…</div>';
-
   try {
     const url = `https://itunes.apple.com/search?media=music&entity=${mode === "songs" ? "song" : "album"}&limit=25&term=${encodeURIComponent(term)}`;
-    const data = await itunes(url);
-
+    const data = await jsonp(url);
     if (id !== reqId) return;
-    if (!data.results.length) {
-      results.innerHTML = `<div class="status">No ${MODES[mode].noun}s found. Try a different spelling.</div>`;
-      return;
-    }
-
+    if (!data.results.length) { results.innerHTML = `<div class="status">No ${MODES[mode].noun}s found. Try a different spelling.</div>`; return; }
     results.innerHTML = "";
-
     data.results.filter(r => mode === "songs" ? r.trackName : r.collectionName).forEach(r => {
       const isSong = mode === "songs";
       const album = isSong
-        ? {
-            kind: "song",
-            name: r.trackName,
-            artist: r.artistName,
-            id: r.trackId,
-            preview: r.previewUrl || "",
-            art: r.artworkUrl100.replace("100x100bb", "600x600bb")
-          }
-        : {
-            name: r.collectionName,
-            artist: r.artistName,
-            id: r.collectionId,
-            art: r.artworkUrl100.replace("100x100bb", "600x600bb")
-          };
-
+        ? { kind: "song", name: r.trackName, artist: r.artistName, id: r.trackId, preview: r.previewUrl || "",
+            art: r.artworkUrl100.replace("100x100bb", "600x600bb") }
+        : { name: r.collectionName, artist: r.artistName, id: r.collectionId,
+            art: r.artworkUrl100.replace("100x100bb", "600x600bb") };
       const btn = document.createElement("button");
-      btn.className = "res";
-      btn.type = "button";
+      btn.className = "res"; btn.type = "button";
       btn.innerHTML = `<img src="${r.artworkUrl100}" alt=""><div><b>${esc(album.name)}</b><span>${esc(album.artist)}${isSong && r.collectionName ? " · " + esc(r.collectionName) : ""}${r.releaseDate ? " · " + r.releaseDate.slice(0, 4) : ""}</span></div>`;
-
-      btn.onclick = () => {
-        if (playing && playing.i === activeSlot) stopAudio();
-        albums[activeSlot] = album;
-        save();
-        render();
-        dlg.close();
-      };
-
+      btn.onclick = () => { if (playing && playing.i === activeSlot) stopAudio(); albums[activeSlot] = album; save(); render(); dlg.close(); };
       results.appendChild(btn);
     });
-
   } catch (e) {
-    if (id === reqId) {
-      results.innerHTML = '<div class="status">Search failed. Check your internet connection and try again.</div>';
-    }
+    if (id === reqId) results.innerHTML = '<div class="status">Search failed. Check your internet connection and try again.</div>';
   }
 }
 
