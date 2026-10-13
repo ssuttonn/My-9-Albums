@@ -10,6 +10,8 @@ You can try **My 9 Albums** here:
 
 https://ssuttonn.github.io/My-9-Albums/
 
+CURRENTLY DOES NOT WORK ON MOBILE
+
 ## Features
 
 - **Albums & Songs modes** — Create a list of your 9 favorite albums or songs.
