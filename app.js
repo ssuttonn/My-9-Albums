@@ -67,6 +67,19 @@ function fitHeader() {
   fitGrid();
 }
 
+// Height of the name/artist/caption area under a cover, measured on a hidden sample slot.
+let probe = null;
+function textHeight() {
+  if (!probe) {
+    probe = document.createElement("div");
+    probe.className = "slot filled"; probe.setAttribute("aria-hidden", "true");
+    probe.style.cssText = "position:absolute;left:-9999px;top:0;width:120px;visibility:hidden;pointer-events:none";
+    probe.innerHTML = '<div class="art"></div><div class="label"><b>Name</b><small>Artist</small></div><input class="cap" tabindex="-1">';
+    document.body.appendChild(probe);
+  }
+  return probe.offsetHeight - probe.querySelector(".art").offsetHeight;
+}
+
 // Size the covers so the whole page (title, 3x3 grid, buttons) fits the window exactly, with no scrolling.
 function fitGrid() {
   const slots = grid.children;
@@ -76,8 +89,8 @@ function fitGrid() {
   if (touchMq.matches && ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return;
   const wrap = document.querySelector(".wrap"), footer = document.querySelector("footer");
   const gs = getComputedStyle(grid), ws = getComputedStyle(wrap);
-  let textH = 0;
-  for (const sl of slots) { const art = sl.querySelector(".art"); if (art) textH = Math.max(textH, sl.offsetHeight - art.offsetHeight); }
+  const textH = textHeight();   // always the height of a filled slot, so empty and full grids are the same size
+  grid.style.setProperty("--text-h", textH + "px");
   const rowGap = parseFloat(gs.rowGap) || 14, colGap = parseFloat(gs.columnGap) || 16;
   const footH = footer.offsetHeight + (parseFloat(getComputedStyle(footer).marginTop) || 0);
   const avail = window.innerHeight - grid.getBoundingClientRect().top - footH - (parseFloat(ws.paddingBottom) || 0) - 4;
@@ -232,9 +245,9 @@ async function togglePreview(i) {
   }
 }
 
-// Apple request. Tries, in order: (1) a normal fetch, (2) the script-tag method, then (3) two public relay
-// services that ask Apple on our behalf (for phones/networks that block Apple's domain or rate-limit them).
-// If everything fails, the error carries a short "detail" line saying what happened at each step.
+// Apple request. Tries a normal fetch first (works on the hosted https site), then the script-tag method
+// (works from a double-clicked local file or where fetch is blocked). If both fail, the error carries a short
+// "detail" line saying what happened at each step.
 const apiCache = {};
 async function fetchJson(u, ms) {
   const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms);
@@ -249,9 +262,7 @@ async function itunes(url) {
   const why = [];
   const attempts = [
     ["direct", () => fetchJson(url, 6000)],
-    ["script", () => jsonp(url, 7000)],
-    ["relay 1", () => fetchJson("https://api.allorigins.win/raw?url=" + encodeURIComponent(url), 8000)],
-    ["relay 2", () => fetchJson("https://corsproxy.io/?" + encodeURIComponent(url), 8000)]
+    ["script", () => jsonp(url, 7000)]
   ];
   for (const [name, run] of attempts) {
     try {
@@ -262,7 +273,6 @@ async function itunes(url) {
   }
   const err = new Error("all attempts failed");
   err.detail = why.join(" | ");
-  err.rate = why.some(w => /HTTP (403|429)/.test(w));
   throw err;
 }
 
@@ -307,9 +317,7 @@ async function search() {
   } catch (e) {
     if (id === reqId) {
       const detail = e && e.detail ? `<br><small>Details: ${esc(e.detail)}</small>` : "";
-      results.innerHTML = e && e.rate
-        ? `<div class="status">Apple's search is busy right now (too many requests). Wait about a minute and try again.${detail}</div>`
-        : `<div class="status">Couldn't reach Apple's music search. Check your connection. If you're on a phone, try Wi-Fi, and turn off any content blocker or private browsing for this site.${detail}</div>`;
+      results.innerHTML = `<div class="status">Couldn't reach Apple's music search from this device or network. Try switching between Wi-Fi and mobile data, or turn off any VPN, private relay or content blocker, then try again.${detail}</div>`;
     }
   }
 }

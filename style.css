@@ -272,3 +272,7 @@
   .hint { font-size: 12px; color: var(--sub); margin: 8px 0 0; }
   .help-foot { gap: 8px; }
   .help-foot button.secondary { background: transparent; color: var(--accent); }
+
+  /* ---------- Same size in Albums and Songs, filled or empty ---------- */
+  .grid { grid-auto-rows: calc(var(--w) + var(--text-h, 0px)); }
+  .label small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
